@@ -38,3 +38,54 @@ To generate larger datasets, simply:
 
 - For 10 GB, multiply the rows per table by 10.
 - Adjust parameters to your storage capacity and performance requirements.
+
+## Creating docker container of postgres 14 for testing
+
+- Create data directory
+
+```
+rm -rf data
+mkdir data
+sudo chown -R 999:999 data
+chmod -R 700 data
+```
+
+- Create `postgres.conf` file
+
+```
+cat > postgresql.conf <<END
+listen_addresses = '*'
+wal_level = replica
+max_wal_senders = 10
+max_replication_slots = 10
+END
+```
+
+- Create `pg_hba.conf` file
+
+```
+cat > pg_hba.conf <<END
+local   all             all                                     md5
+host    all             all             0.0.0.0/0               md5
+host replication replicator 0.0.0.0/0 md5
+END
+```
+
+- Now run docker container
+
+```
+docker run -d \
+  --name postgres14 \
+  -e POSTGRES_USER=postgres \
+  -e POSTGRES_PASSWORD=postgres \
+  -e POSTGRES_DB=postgres \
+  -e REPLICATOR_USER=replicator \
+  -e REPLICATOR_PASSWORD=replicatorpassword \
+  -p 5432:5432 \
+  -v $(pwd)/postgresql.conf:/etc/postgresql/postgresql.conf \
+  -v $(pwd)/pg_hba.conf:/etc/postgresql/pg_hba.conf \
+  -v $(pwd)/data:/var/lib/postgresql/data \
+  postgres:14 \
+  -c config_file=/etc/postgresql/postgresql.conf \
+  -c hba_file=/etc/postgresql/pg_hba.conf
+```
